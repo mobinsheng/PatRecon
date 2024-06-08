@@ -6,7 +6,7 @@ import math
 """
 UNet
 """
-#from util.util import *
+# from util.util import *
 
 
 class Conv2DBlock(nn.Module):
@@ -321,27 +321,17 @@ class V3(nn.Module):
         self.base_conv2d1 = Conv2DBlock(1024, 1024)
         self.down_sample_conv2d1 = Conv2DDownSampleBlock(1024, 1024)
 
-        self.link_layer1 = LinkBlock(1024, 64, 32, 32)
-
         self.base_conv2d2 = Conv2DBlock(1024, 1024)
         self.down_sample_conv2d2 = Conv2DDownSampleBlock(1024, 1024)
-
-        self.link_layer2 = LinkBlock(1024, 128, 16, 16)
 
         self.base_conv2d3 = Conv2DBlock(1024, 1024)
         self.down_sample_conv2d3 = Conv2DDownSampleBlock(1024, 1024)
 
-        self.link_layer3 = LinkBlock(1024, 256, 8, 8)
-
         self.base_conv2d4 = Conv2DBlock(1024, 1024)
         self.down_sample_conv2d4 = Conv2DDownSampleBlock(1024, 1024)
 
-        self.link_layer4 = LinkBlock(1024, 512, 4, 4)
-
         self.base_conv2d5 = Conv2DBlock(1024, 2048)
         self.down_sample_conv2d5 = Conv2DDownSampleBlock(2048, 2048)
-
-        self.link_layer5 = LinkBlock(2048, 1024, 2, 2)
 
         self.transformer_layer = nn.Sequential(
             Conv2D1x1Block(2048, 2048),
@@ -350,11 +340,11 @@ class V3(nn.Module):
 
         )
 
-        self.up_sample_conv3d5 = ConvTranspose3dUpSampleBlock(1024 * self.multiple, 512)
-        self.up_sample_conv3d4 = ConvTranspose3dUpSampleBlock(512 * self.multiple, 256)
-        self.up_sample_conv3d3 = ConvTranspose3dUpSampleBlock(256 * self.multiple, 128)
-        self.up_sample_conv3d2 = ConvTranspose3dUpSampleBlock(128 * self.multiple, 64)
-        self.up_sample_conv3d1 = ConvTranspose3dUpSampleBlock(64 * self.multiple, 32)
+        self.up_sample_conv3d5 = ConvTranspose3dUpSampleBlock(1024, 512)
+        self.up_sample_conv3d4 = ConvTranspose3dUpSampleBlock(512, 256)
+        self.up_sample_conv3d3 = ConvTranspose3dUpSampleBlock(256, 128)
+        self.up_sample_conv3d2 = ConvTranspose3dUpSampleBlock(128, 64)
+        self.up_sample_conv3d1 = ConvTranspose3dUpSampleBlock(64, 32)
         self.up_sample_conv3d0 = ConvTranspose3dUpSampleBlock(32 * self.multiple, 16)
 
         self.output_layer = OutputBlock(16, 1)
@@ -396,27 +386,22 @@ class V3(nn.Module):
         link0 = self.link_layer0(enc0)
 
         enc1 = self.down_sample_conv2d1(self.base_conv2d1(enc0))
-        link1 = self.link_layer1(enc1)
 
         enc2 = self.down_sample_conv2d2(self.base_conv2d2(enc1))
-        link2 = self.link_layer2(enc2)
 
         enc3 = self.down_sample_conv2d3(self.base_conv2d3(enc2))
-        link3 = self.link_layer3(enc3)
 
         enc4 = self.down_sample_conv2d4(self.base_conv2d4(enc3))
-        link4 = self.link_layer4(enc4)
 
         enc5 = self.down_sample_conv2d5(self.base_conv2d5(enc4))
-        link5 = self.link_layer5(enc5)
 
         features = self.transformer_layer(enc5)
 
-        dec5 = self.up_sample_conv3d5(torch.cat((features, link5), dim=1))
-        dec4 = self.up_sample_conv3d4(torch.cat((dec5, link4), dim=1))
-        dec3 = self.up_sample_conv3d3(torch.cat((dec4, link3), dim=1))
-        dec2 = self.up_sample_conv3d2(torch.cat((dec3, link2), dim=1))
-        dec1 = self.up_sample_conv3d1(torch.cat((dec2, link1), dim=1))
+        dec5 = self.up_sample_conv3d5(features)
+        dec4 = self.up_sample_conv3d4(dec5)
+        dec3 = self.up_sample_conv3d3(dec4)
+        dec2 = self.up_sample_conv3d2(dec3)
+        dec1 = self.up_sample_conv3d1(dec2)
         dec0 = self.up_sample_conv3d0(torch.cat((dec1, link0), dim=1))
 
         output = self.output_layer(dec0)
@@ -425,7 +410,7 @@ class V3(nn.Module):
 
         return output
 
-    #@time_cost
+    # @time_cost
     def forward(self, data):
         if self.enable_unet:
             return self.run_unet(data)
