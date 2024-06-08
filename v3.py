@@ -6,7 +6,7 @@ import math
 """
 UNet
 """
-from util.util import *
+#from util.util import *
 
 
 class Conv2DBlock(nn.Module):
@@ -425,7 +425,7 @@ class V3(nn.Module):
 
         return output
 
-    @time_cost
+    #@time_cost
     def forward(self, data):
         if self.enable_unet:
             return self.run_unet(data)
