@@ -324,7 +324,7 @@ for epoch in range(start_epoch, epochs, 1):
         output = torch.squeeze(output, 1)
 
         numpy_output = output.data.cpu().numpy()
-        nii_numpy_output = numpy_output[0] / 255.0 / SCALE_FACTOR
+        nii_numpy_output = numpy_output[0] / 255.0
         nii_numpy_output = un_normalization(nii_numpy_output, CT_MIN_MAX[0], CT_MIN_MAX[1])
 
         out_ct = sitk.GetImageFromArray(nii_numpy_output)
