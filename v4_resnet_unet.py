@@ -46,16 +46,16 @@ class DecoderLayer(nn.Module):
     pass
 
 
-class V3(nn.Module):
+class V4(nn.Module):
     """
 
     """
 
     def __init__(self, input_channels, output_channels):
-        super(V3, self).__init__()
+        super(V4, self).__init__()
 
         short_cut_channels = 128
-        
+
         self.enc_layer0 = EncoderLayer(input_channels, 128, resnet=True)
         self.enc_layer1 = EncoderLayer(128, 256, resnet=True)
         self.enc_layer2 = EncoderLayer(256, 512, resnet=True)
@@ -128,7 +128,7 @@ class V3(nn.Module):
 
 
 if __name__ == "__main__":
-    m = V3(3, 128)
+    m = V4(3, 128)
 
     print(m)
 
