@@ -12,8 +12,8 @@ def print_shape(data):
 def initialize_weights(net):
     """
     权重初始化
-    :param net: 
-    :return: 
+    :param net:
+    :return:
     """
     for m in net.modules():
         if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
@@ -92,6 +92,61 @@ class Conv2DDownSampleBlock(nn.Module):
     pass
 
 
+class ConvTranspose2dBlock(nn.Module):
+    """
+    2维卷积，分辨率不变，只用于提取特征
+    """
+
+    def __init__(self, input_channels, output_channels):
+        super(ConvTranspose2dBlock, self).__init__()
+        self.model = nn.Sequential(
+            nn.ConvTranspose2d(in_channels=input_channels,
+                               out_channels=output_channels,
+                               kernel_size=3,
+                               stride=1,
+                               padding=1,
+                               bias=False),
+            nn.BatchNorm2d(output_channels),
+            nn.ReLU(inplace=True),
+
+        )
+        pass
+
+    def forward(self, data):
+        output = self.model(data)
+        return output
+
+    pass
+
+
+class ConvTranspose2dUpSampleBlock(nn.Module):
+    """
+    通过2维卷积实现分辨率加倍
+    """
+
+    def __init__(self, input_channels, output_channels):
+        super(ConvTranspose2dUpSampleBlock, self).__init__()
+        self.model = nn.Sequential(
+            nn.ConvTranspose2d(in_channels=input_channels,
+                               out_channels=output_channels,
+                               kernel_size=3,
+                               stride=2,
+                               padding=1,
+                               output_padding=1,
+                               bias=False),
+            nn.BatchNorm2d(output_channels),
+            nn.ReLU(inplace=True),
+
+        )
+        pass
+
+    def forward(self, data):
+        output = self.model(data)
+        return output
+
+    pass
+
+
 class ConvTranspose3dBlock(nn.Module):
     """
     3维卷积，分辨率不变，只用于提取特征
@@ -143,6 +198,50 @@ class ConvTranspose3dUpSampleBlock(nn.Module):
     def forward(self, data):
         output = self.model(data)
         return output
+
+    pass
+
+
+class Conv3dDownSampleBlock(nn.Module):
+    def __init__(self, inc, outc):
+        super(Conv3dDownSampleBlock, self).__init__()
+        self.model = nn.Sequential(
+            nn.Conv3d(in_channels=inc,
+                      out_channels=outc,
+                      kernel_size=3,
+                      stride=2,
+                      padding=1,
+                      bias=False),
+            nn.BatchNorm3d(outc),
+            nn.ReLU(inplace=True),
+        )
+        pass
+
+    def forward(self, data):
+        out = self.model(data)
+        return out
+
+    pass
+
+
+class Conv3dBlock(nn.Module):
+    def __init__(self, inc, outc):
+        super(Conv3dBlock, self).__init__()
+        self.model = nn.Sequential(
+            nn.Conv3d(in_channels=inc,
+                      out_channels=outc,
+                      kernel_size=3,
+                      stride=1,
+                      padding=1,
+                      bias=False),
+            nn.BatchNorm3d(outc),
+            nn.ReLU(inplace=True),
+        )
+        pass
+
+    def forward(self, data):
+        out = self.model(data)
+        return out
 
     pass
 
@@ -199,7 +298,7 @@ class Transpose3D1x1Block(nn.Module):
     pass
 
 
-class ConvertFrom2DTo3D(nn.Module):
+class To3D(nn.Module):
     """
     数据从2D变为3D
     具体的：
@@ -208,7 +307,7 @@ class ConvertFrom2DTo3D(nn.Module):
     """
 
     def __init__(self):
-        super(ConvertFrom2DTo3D, self).__init__()
+        super(To3D, self).__init__()
         pass
 
     def forward(self, data):
@@ -228,12 +327,38 @@ class ConvertFrom2DTo3D(nn.Module):
     pass
 
 
+class To2D(nn.Module):
+    """
+    数据从3D变为2D
+    具体的：
+    1、数据从[N, C, H, W]变成[N, C, D, H, W]
+    2、D是新增的维度：深度
+    """
+
+    def __init__(self):
+        super(To2D, self).__init__()
+        pass
+
+    def forward(self, data):
+        batch_size, channels, depth, height, width = data.shape
+
+        assert height == width
+
+        new_channels = channels * depth
+
+        output = data.view(batch_size, new_channels, height, width)
+
+        return output
+
+    pass
+
+
 class LinkBlock(nn.Module):
     """
     UNet的link模块
     """
 
-    def __init__(self, input_channels, output_channels, width, height):
+    def __init__(self, input_channels, output_channels, width, height, use_conv3d=True):
         super(LinkBlock, self).__init__()
 
         assert width == height
@@ -243,28 +368,45 @@ class LinkBlock(nn.Module):
 
         middle_channels = self.depth
 
-        self.model = nn.Sequential(
-            nn.Conv2d(in_channels=input_channels,
-                      out_channels=middle_channels * input_channels,
-                      kernel_size=1,
-                      stride=1,
-                      padding=0,
-                      bias=False),
-            nn.BatchNorm2d(middle_channels * input_channels),
-            nn.ReLU(inplace=True),
+        if use_conv3d:
+            self.model = nn.Sequential(
+                nn.Conv2d(in_channels=input_channels,
+                          out_channels=middle_channels * input_channels,
+                          kernel_size=1,
+                          stride=1,
+                          padding=0,
+                          bias=False),
+                nn.BatchNorm2d(middle_channels * input_channels),
+                nn.ReLU(inplace=True),
 
-            ConvertFrom2DTo3D(),
+                To3D(),
 
-            nn.ConvTranspose3d(in_channels=input_channels,
-                               out_channels=output_channels,
-                               kernel_size=1,
-                               stride=1,
-                               padding=0,
-                               bias=False),
-            nn.BatchNorm3d(output_channels),
-            nn.ReLU(inplace=True),
+                nn.ConvTranspose3d(in_channels=input_channels,
+                                   out_channels=output_channels,
+                                   kernel_size=3,
+                                   stride=1,
+                                   padding=1,
+                                   bias=False),
+                nn.BatchNorm3d(output_channels),
+                nn.ReLU(inplace=True),
 
-        )
+            )
+
+        else:
+            self.model = nn.Sequential(
+                nn.Conv2d(in_channels=input_channels,
+                          out_channels=middle_channels * output_channels,
+                          kernel_size=1,
+                          stride=1,
+                          padding=0,
+                          bias=False),
+                nn.BatchNorm2d(middle_channels * output_channels),
+                nn.ReLU(inplace=True),
+
+                To3D(),
+
+            )
+
         pass
 
     def forward(self, data):
@@ -284,7 +426,7 @@ class OutputBlock(nn.Module):
     经过一个1x1的卷积层，类似于于一个全连接层
     """
 
-    def __init__(self, input_channels, output_channels):
+    def __init__(self, input_channels, output_channels, use_activate=False):
         super(OutputBlock, self).__init__()
 
         self.model = nn.Sequential(
@@ -293,8 +435,13 @@ class OutputBlock(nn.Module):
                                kernel_size=1,
                                stride=1,
                                padding=0,
-                               bias=False)
+                               bias=False),
         )
+
+        if use_activate:
+            self.model.append(
+                nn.Sigmoid()
+            )
 
         """
         count = round(math.sqrt(input_channels))
